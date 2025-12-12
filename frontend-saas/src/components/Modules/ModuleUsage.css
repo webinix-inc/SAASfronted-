@@ -1,0 +1,60 @@
+.module-usage {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.usage-table-container {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.usage-table thead {
+  background: #f8f9fa;
+}
+
+.usage-table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.usage-table td {
+  padding: 15px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+
+.usage-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.module-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px !important;
+  color: #999;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400px;
+  font-size: 18px;
+  color: #666;
+}
+
