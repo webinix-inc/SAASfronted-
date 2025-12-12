@@ -19,6 +19,40 @@ const TenantEdit = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
+  // Get base frontend URL from environment or use default
+  const getBaseFrontendUrl = () => {
+    // In production, this should come from backend config or env
+    // For now, we'll use a placeholder that backend will replace
+    return process.env.REACT_APP_USER_FRONTEND_URL || 'https://e-commerce-user-sage.vercel.app';
+  };
+
+  // Generate path-based frontend URL
+  // Handles localhost with and without ports
+  const generatePathBasedUrl = (subdomain) => {
+    if (!subdomain) return '';
+    
+    try {
+      const baseUrl = getBaseFrontendUrl();
+      // Parse the URL to handle ports properly
+      const url = new URL(baseUrl);
+      
+      // Remove trailing slash from pathname if present
+      const pathname = url.pathname.replace(/\/$/, '');
+      
+      // Reconstruct URL with subdomain path
+      // Preserve protocol, hostname, and port (if present)
+      const port = url.port ? `:${url.port}` : '';
+      const fullBaseUrl = `${url.protocol}//${url.hostname}${port}${pathname}`;
+      
+      // Generate path-based URL
+      return `${fullBaseUrl}/${subdomain}`;
+    } catch (error) {
+      // If URL parsing fails, fallback to simple string concatenation
+      const baseUrl = getBaseFrontendUrl().replace(/\/$/, '');
+      return `${baseUrl}/${subdomain}`;
+    }
+  };
+
   useEffect(() => {
     fetchTenant();
   }, [id]);
@@ -43,18 +77,67 @@ const TenantEdit = () => {
   };
 
   const handleChange = (e) => {
-    setFormData({
+    const newFormData = {
       ...formData,
       [e.target.name]: e.target.value
-    });
+    };
+    
+    // Auto-generate path-based frontendUrl when subdomain changes (if no custom domain)
+    if (e.target.name === 'subdomain') {
+      const newSubdomain = e.target.value.trim();
+      if (newSubdomain && !formData.customDomain) {
+        newFormData.frontendUrl = generatePathBasedUrl(newSubdomain);
+      } else if (!newSubdomain) {
+        newFormData.frontendUrl = '';
+      }
+    }
+    
+    // Clear frontendUrl if custom domain is set (will be handled by backend)
+    if (e.target.name === 'customDomain' && e.target.value) {
+      newFormData.frontendUrl = '';
+    }
+    
+    // Regenerate path-based URL if custom domain is cleared
+    if (e.target.name === 'customDomain' && !e.target.value && formData.subdomain) {
+      newFormData.frontendUrl = generatePathBasedUrl(formData.subdomain);
+    }
+    
+    setFormData(newFormData);
   };
+  
+  // Auto-generate frontendUrl after fetching tenant if it's missing
+  useEffect(() => {
+    if (!fetching && formData.subdomain && !formData.customDomain && !formData.frontendUrl) {
+      const generatedUrl = generatePathBasedUrl(formData.subdomain);
+      if (generatedUrl) {
+        setFormData(prev => ({ ...prev, frontendUrl: generatedUrl }));
+      }
+    }
+  }, [fetching, formData.subdomain, formData.customDomain, formData.frontendUrl]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await axios.put(`${API_URL}/api/saas/tenants/${id}`, formData);
+      // Prepare form data - don't send frontendUrl if it's empty or just base URL
+      // Let backend auto-generate it
+      const submitData = { ...formData };
+      
+      // If frontendUrl is empty or matches base URL without subdomain, don't send it
+      const baseUrl = getBaseFrontendUrl().replace(/\/$/, '');
+      if (!submitData.frontendUrl || 
+          submitData.frontendUrl.trim() === '' || 
+          submitData.frontendUrl.trim() === baseUrl) {
+        delete submitData.frontendUrl; // Let backend auto-generate
+      }
+      
+      // Don't send empty customDomain
+      if (!submitData.customDomain || submitData.customDomain.trim() === '') {
+        submitData.customDomain = '';
+      }
+      
+      await axios.put(`${API_URL}/api/saas/tenants/${id}`, submitData);
       toast.success('Tenant updated successfully!');
       navigate(`/tenants/${id}`);
     } catch (error) {
@@ -126,10 +209,13 @@ const TenantEdit = () => {
                 name="frontendUrl"
                 value={formData.frontendUrl}
                 onChange={handleChange}
-                placeholder="http://acme.yoursaas.com or http://localhost:3001"
+                placeholder={`${getBaseFrontendUrl()}/tenant-name`}
               />
               <small className="form-hint">
-                URL where the tenant's frontend will be accessible. Auto-generated from subdomain if left empty.
+                {formData.customDomain 
+                  ? 'Custom domain URL (e.g., https://acme.com). Leave empty if using custom domain.'
+                  : `Path-based URL. Auto-generated as: ${getBaseFrontendUrl()}/{subdomain}. You can override this if needed.`
+                }
               </small>
             </div>
 
@@ -185,4 +271,3 @@ const TenantEdit = () => {
 };
 
 export default TenantEdit;
-
